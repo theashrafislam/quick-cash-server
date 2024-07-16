@@ -27,18 +27,30 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
+    const registerUser = client.db("quick-cash").collection("registerUser");
 
 
 
 
+    app.post("/register-user", async (req, res) => {
+        const info = req.body;
+        const query = {email: info.email}
+        const find = await registerUser.findOne(query);
+        if(!find){
+            const result = await registerUser.insertOne(info);
+            return res.send(result);
+        }
+        else{
+            return res.status(400).send({message: 'Email is already used.'})
+        }
+    })
+
+    app.get('/register-user', async(req, res) => {
+        const result = await registerUser.find().toArray();
+        res.send(result);
+    })
 
 
-
-
-
-
-
-    
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");

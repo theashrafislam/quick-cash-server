@@ -4,10 +4,27 @@ const port = process.env.POST || 5000;
 const cors = require('cors');
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 //middelware
 app.use(express.json());
 app.use(cors());
+
+// for token verify
+const authMiddleware = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).send({ message: 'Unauthorized access. No token provided.' });
+    }
+    try {
+        const decoded = jwt.verify(token, process.env.SECRET_CODE);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        res.status(401).send({ message: 'Unauthorized access. Invalid token.' });
+    }
+};
+
 
 
 
@@ -54,7 +71,24 @@ async function run() {
         })
 
         app.post('/login', async (req, res) => {
-            
+            const loginInfo = req.body;
+            console.log(loginInfo);
+            // const query = { emailOrPhone: loginInfo.emailOrPhone, pin: loginInfo.pin };
+            const find = await registerUser.findOne({
+                $or: [
+                    { email: loginInfo.emailOrPhone },
+                    { mobileNumber: loginInfo.emailOrPhone }
+                ]
+            });
+            if (find && await bcrypt.compare(loginInfo.pin, find.pin)) {
+                const token = jwt.sign({
+                    id: find._id, role: find.userRole
+                }, process.env.SECRET_CODE, { expiresIn: '1h' });
+                res.send({ token, id: find._id });
+            }
+            else {
+                res.status(400).send({ message: 'Invalid credentials. Please try again.' });
+            }
         })
 
         app.get('/register-user', async (req, res) => {
